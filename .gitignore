@@ -1,0 +1,11 @@
+# SQLite database
+db/*.db
+db/*.db-shm
+db/*.db-wal
+
+# Environment
+.env
+
+# Go
+bin/
+dist/
