@@ -8,7 +8,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-func (app *application) register(username string, password []byte) (*database.User, error) {
+func (app *application) createUser(username string, password []byte) (*database.User, error) {
 	if err := validateUsername(username); err != nil {
 		return nil, err
 	}

@@ -14,14 +14,7 @@ func (app *application) execCmd(cmd string) (string, error) {
 		msg = "Bye.."
 
 	case "register":
-		username, password, err := app.getUserPass()
-		if err != nil {
-			return "error reading username or password", err
-		}
-		user, err := app.register(username, password)
-		if err != nil {
-			return "failed to register", err
-		}
+		return app.register()
 
 	case "login":
 	case "logout":
@@ -34,4 +27,20 @@ func (app *application) execCmd(cmd string) (string, error) {
 	}
 
 	return msg, err
+}
+
+func (app *application) register() (string, error) {
+	username, password, err := app.getUserPass()
+	if err != nil {
+		return "", err
+	}
+	user, err := app.createUser(username, password)
+	if err != nil {
+		return "", err
+	}
+
+	// TODO: create session for the user
+	_ = user
+
+	return "registered successfully!", nil
 }
