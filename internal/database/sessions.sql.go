@@ -23,17 +23,6 @@ func (q *Queries) CreateSession(ctx context.Context, userID int64) (string, erro
 	return session_token, err
 }
 
-const deactivateSession = `-- name: DeactivateSession :exec
-UPDATE sessions
-SET is_active = 0
-WHERE session_token = ?
-`
-
-func (q *Queries) DeactivateSession(ctx context.Context, sessionToken string) error {
-	_, err := q.db.ExecContext(ctx, deactivateSession, sessionToken)
-	return err
-}
-
 const deleteExpiredSessions = `-- name: DeleteExpiredSessions :exec
 DELETE FROM sessions
 WHERE expires_at <= CURRENT_TIMESTAMP
@@ -41,6 +30,16 @@ WHERE expires_at <= CURRENT_TIMESTAMP
 
 func (q *Queries) DeleteExpiredSessions(ctx context.Context) error {
 	_, err := q.db.ExecContext(ctx, deleteExpiredSessions)
+	return err
+}
+
+const deleteSession = `-- name: DeleteSession :exec
+DELETE FROM sessions
+WHERE user_id = ?
+`
+
+func (q *Queries) DeleteSession(ctx context.Context, userID int64) error {
+	_, err := q.db.ExecContext(ctx, deleteSession, userID)
 	return err
 }
 

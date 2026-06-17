@@ -14,11 +14,10 @@ WHERE
     AND is_active = 1
     AND expires_at > CURRENT_TIMESTAMP;
 
--- name: DeactivateSession :exec
-UPDATE sessions
-SET is_active = 0
-WHERE session_token = ?;
-
 -- name: DeleteExpiredSessions :exec
 DELETE FROM sessions
 WHERE expires_at <= CURRENT_TIMESTAMP;
+
+-- name: DeleteSession :exec
+DELETE FROM sessions
+WHERE user_id = ?;

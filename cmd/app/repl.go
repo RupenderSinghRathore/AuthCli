@@ -34,7 +34,9 @@ func (app *application) repl() error {
 	app.readWriter = rl
 	defer rl.Close()
 
-	var ve ValidatationErr
+	var validErr ValidatationErr
+	var lockErr AccountLockedErr
+	var failedErr WrongPasswordErr
 
 	for !app.quit {
 		line, err := app.read()
@@ -42,13 +44,17 @@ func (app *application) repl() error {
 			return err
 		}
 		line = strings.TrimSpace(line)
-		msg, err := app.execCmd(line)
+		msg, err := app.execCommand(line)
 		switch {
 		case err == nil:
 			if msg != "" {
 				app.write(msg)
 			}
-		case errors.As(err, &ve):
+		case errors.As(err, &validErr),
+			errors.As(err, &lockErr),
+			errors.As(err, &failedErr),
+			errors.Is(err, ErrNotLoggedIn),
+			errors.Is(err, ErrUserNotFound):
 			app.error(err)
 		default:
 			return err

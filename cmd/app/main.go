@@ -17,7 +17,12 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-const AppName = "authcli"
+const (
+	AppName           = "authcli"
+	MaxFailedAttempts = 3
+	// LockedUntil       = 7 * 24 * time.Hour
+	LockedUntil = time.Minute
+)
 
 type application struct {
 	readWriter *readline.Instance
@@ -25,6 +30,7 @@ type application struct {
 	cfg        *confugration
 	queary     *database.Queries
 	user       struct {
+		id         int64
 		name       string
 		isLoggedIn bool
 	}
@@ -69,9 +75,9 @@ func main() {
 	user, err := app.getSessionUser()
 	switch {
 	case err == nil:
-		app.loggingIn(user.Username)
+		app.fillLoginInfo(user)
 		fmt.Printf("Wellcome back %s to %s\n", app.user.name, AppName)
-	case errors.Is(err, sql.ErrNoRows) || errors.Is(err, os.ErrNotExist):
+	case errors.Is(err, ErrUserNotFound), errors.Is(err, os.ErrNotExist):
 		fmt.Printf("Wellcome to %s new user\n", AppName)
 	default:
 		log.Fatal(err)
@@ -104,9 +110,16 @@ func openDB(cfg *confugration) (*sql.DB, error) {
 	return db, nil
 }
 
-func (app *application) loggingIn(username string) {
+func (app *application) fillLoginInfo(user *database.User) {
 	app.user.isLoggedIn = true
-	app.user.name = username
+	app.user.name = user.Username
+	app.user.id = user.ID
+}
+
+func (app *application) unFillLoginInfo() {
+	app.user.isLoggedIn = false
+	app.user.name = ""
+	app.user.id = 0
 }
 
 func getEnv(v string) (string, error) {

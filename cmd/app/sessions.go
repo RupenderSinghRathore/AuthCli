@@ -1,10 +1,13 @@
 package main
 
 import (
-	"RupenderSinghRathore/AuthCli/internal/database"
 	"context"
+	"database/sql"
+	"errors"
 	"os"
 	"path/filepath"
+
+	"RupenderSinghRathore/AuthCli/internal/database"
 )
 
 func (app *application) writeSessionConfig(sessionId string) error {
@@ -47,7 +50,10 @@ func (app *application) getSessionUser() (*database.User, error) {
 		return nil, err
 	}
 	user, err := app.queary.GetUserBySessionToken(context.Background(), string(session_id))
-	if err != nil {
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		return nil, ErrUserNotFound
+	case err != nil:
 		return nil, err
 	}
 	return &user, nil

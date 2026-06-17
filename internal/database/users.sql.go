@@ -7,6 +7,7 @@ package database
 
 import (
 	"context"
+	"time"
 )
 
 const createUser = `-- name: CreateUser :one
@@ -69,8 +70,7 @@ SELECT
     u.id, u.username, u.password_hash, u.mfa_enabled, u.totp_secret, u.failed_attempts, u.locked_until, u.created_at, u.last_login_at
 FROM
     users u
-JOIN
-    sessions s ON s.user_id = u.id
+    JOIN sessions s ON s.user_id = u.id
 WHERE
     s.session_token = ?
     AND s.is_active = 1
@@ -92,4 +92,117 @@ func (q *Queries) GetUserBySessionToken(ctx context.Context, sessionToken string
 		&i.LastLoginAt,
 	)
 	return i, err
+}
+
+const getUserByUsername = `-- name: GetUserByUsername :one
+SELECT
+    id, username, password_hash, mfa_enabled, totp_secret, failed_attempts, locked_until, created_at, last_login_at
+FROM
+    users
+WHERE
+    username = ?
+`
+
+func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User, error) {
+	row := q.db.QueryRowContext(ctx, getUserByUsername, username)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.PasswordHash,
+		&i.MfaEnabled,
+		&i.TotpSecret,
+		&i.FailedAttempts,
+		&i.LockedUntil,
+		&i.CreatedAt,
+		&i.LastLoginAt,
+	)
+	return i, err
+}
+
+const getUserForLogin = `-- name: GetUserForLogin :one
+SELECT
+    id, username, password_hash, mfa_enabled, totp_secret, failed_attempts, locked_until, created_at, last_login_at
+FROM
+    users
+WHERE
+    username = ?
+    AND (locked_until IS NULL
+        OR locked_until <= CURRENT_TIMESTAMP)
+`
+
+func (q *Queries) GetUserForLogin(ctx context.Context, username string) (User, error) {
+	row := q.db.QueryRowContext(ctx, getUserForLogin, username)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.PasswordHash,
+		&i.MfaEnabled,
+		&i.TotpSecret,
+		&i.FailedAttempts,
+		&i.LockedUntil,
+		&i.CreatedAt,
+		&i.LastLoginAt,
+	)
+	return i, err
+}
+
+const recordFailedLogin = `-- name: RecordFailedLogin :one
+UPDATE
+    users
+SET
+    failed_attempts = CASE WHEN failed_attempts + 1 >= ?1 THEN
+        0
+    ELSE
+        failed_attempts + 1
+    END,
+    locked_until = CASE WHEN failed_attempts + 1 >= ?1 THEN
+        ?2
+    ELSE
+        locked_until
+    END
+WHERE
+    id = ?3
+RETURNING
+    id, username, password_hash, mfa_enabled, totp_secret, failed_attempts, locked_until, created_at, last_login_at
+`
+
+type RecordFailedLoginParams struct {
+	MaxAttempts int64      `json:"maxAttempts"`
+	LockedUntil *time.Time `json:"lockedUntil"`
+	UserID      int64      `json:"userId"`
+}
+
+func (q *Queries) RecordFailedLogin(ctx context.Context, arg RecordFailedLoginParams) (User, error) {
+	row := q.db.QueryRowContext(ctx, recordFailedLogin, arg.MaxAttempts, arg.LockedUntil, arg.UserID)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.PasswordHash,
+		&i.MfaEnabled,
+		&i.TotpSecret,
+		&i.FailedAttempts,
+		&i.LockedUntil,
+		&i.CreatedAt,
+		&i.LastLoginAt,
+	)
+	return i, err
+}
+
+const recordSuccessfulLogin = `-- name: RecordSuccessfulLogin :exec
+UPDATE
+    users
+SET
+    last_login_at = CURRENT_TIMESTAMP,
+    failed_attempts = 0,
+    locked_until = NULL
+WHERE
+    id = ?
+`
+
+func (q *Queries) RecordSuccessfulLogin(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, recordSuccessfulLogin, id)
+	return err
 }
