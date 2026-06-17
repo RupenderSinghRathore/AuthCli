@@ -11,28 +11,37 @@ import (
 
 const createSession = `-- name: CreateSession :one
 INSERT INTO sessions (session_token, user_id, expires_at)
-    VALUES (?, ?, datetime ('now', '+7 days'))
+    VALUES (lower(hex (randomblob (32))), ?, datetime ('now', '+7 days'))
 RETURNING
-    id, session_token, user_id, created_at, expires_at, is_active
+    session_token
 `
 
-type CreateSessionParams struct {
-	SessionToken string `json:"sessionToken"`
-	UserID       int64  `json:"userId"`
+func (q *Queries) CreateSession(ctx context.Context, userID int64) (string, error) {
+	row := q.db.QueryRowContext(ctx, createSession, userID)
+	var session_token string
+	err := row.Scan(&session_token)
+	return session_token, err
 }
 
-func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) (Session, error) {
-	row := q.db.QueryRowContext(ctx, createSession, arg.SessionToken, arg.UserID)
-	var i Session
-	err := row.Scan(
-		&i.ID,
-		&i.SessionToken,
-		&i.UserID,
-		&i.CreatedAt,
-		&i.ExpiresAt,
-		&i.IsActive,
-	)
-	return i, err
+const deactivateSession = `-- name: DeactivateSession :exec
+UPDATE sessions
+SET is_active = 0
+WHERE session_token = ?
+`
+
+func (q *Queries) DeactivateSession(ctx context.Context, sessionToken string) error {
+	_, err := q.db.ExecContext(ctx, deactivateSession, sessionToken)
+	return err
+}
+
+const deleteExpiredSessions = `-- name: DeleteExpiredSessions :exec
+DELETE FROM sessions
+WHERE expires_at <= CURRENT_TIMESTAMP
+`
+
+func (q *Queries) DeleteExpiredSessions(ctx context.Context) error {
+	_, err := q.db.ExecContext(ctx, deleteExpiredSessions)
+	return err
 }
 
 const getActiveSession = `-- name: GetActiveSession :one

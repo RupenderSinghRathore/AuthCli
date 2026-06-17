@@ -21,7 +21,8 @@
 ┌──────────▼───────────┐
 │      sessions        │
 ├──────────────────────┤
-│ id PK (UUID)         │
+│ id PK                │
+│ session_token        │
 │ user_id FK           │
 │ created_at           │
 │ expires_at           │

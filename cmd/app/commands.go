@@ -1,6 +1,8 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+)
 
 func (app *application) execCmd(cmd string) (string, error) {
 	var msg string
@@ -19,6 +21,7 @@ func (app *application) execCmd(cmd string) (string, error) {
 	case "login":
 	case "logout":
 	case "whoami":
+		msg = app.whoami()
 	case "enable-2fa":
 	case "disable-2fa":
 	case "help":
@@ -29,7 +32,18 @@ func (app *application) execCmd(cmd string) (string, error) {
 	return msg, err
 }
 
+func (app *application) whoami() string {
+	if app.user.isLoggedIn {
+		return app.user.name
+	} else {
+		return "not logged in"
+	}
+}
+
 func (app *application) register() (string, error) {
+	if app.user.isLoggedIn {
+		return "already registered", nil
+	}
 	username, password, err := app.getUserPass()
 	if err != nil {
 		return "", err
@@ -38,9 +52,15 @@ func (app *application) register() (string, error) {
 	if err != nil {
 		return "", err
 	}
+	app.loggingIn(user.Username)
 
-	// TODO: create session for the user
-	_ = user
+	sessionId, err := app.createSession(user.ID)
+	if err != nil {
+		return "", err
+	}
 
+	if err := app.writeSessionConfig(sessionId); err != nil {
+		return "", err
+	}
 	return "registered successfully!", nil
 }

@@ -63,3 +63,33 @@ func (q *Queries) GetUser(ctx context.Context, username string) (User, error) {
 	)
 	return i, err
 }
+
+const getUserBySessionToken = `-- name: GetUserBySessionToken :one
+SELECT
+    u.id, u.username, u.password_hash, u.mfa_enabled, u.totp_secret, u.failed_attempts, u.locked_until, u.created_at, u.last_login_at
+FROM
+    users u
+JOIN
+    sessions s ON s.user_id = u.id
+WHERE
+    s.session_token = ?
+    AND s.is_active = 1
+    AND s.expires_at > CURRENT_TIMESTAMP
+`
+
+func (q *Queries) GetUserBySessionToken(ctx context.Context, sessionToken string) (User, error) {
+	row := q.db.QueryRowContext(ctx, getUserBySessionToken, sessionToken)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.PasswordHash,
+		&i.MfaEnabled,
+		&i.TotpSecret,
+		&i.FailedAttempts,
+		&i.LockedUntil,
+		&i.CreatedAt,
+		&i.LastLoginAt,
+	)
+	return i, err
+}

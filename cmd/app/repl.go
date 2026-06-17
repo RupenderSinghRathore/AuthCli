@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -33,6 +34,8 @@ func (app *application) repl() error {
 	app.readWriter = rl
 	defer rl.Close()
 
+	var ve ValidatationErr
+
 	for !app.quit {
 		line, err := app.read()
 		if err != nil {
@@ -40,18 +43,26 @@ func (app *application) repl() error {
 		}
 		line = strings.TrimSpace(line)
 		msg, err := app.execCmd(line)
-		if err != nil {
+		switch {
+		case err == nil:
+			if msg != "" {
+				app.write(msg)
+			}
+		case errors.As(err, &ve):
+			app.error(err)
+		default:
 			return err
-		}
-		if msg != "" {
-			app.write(fmt.Sprint(msg, "\n"))
 		}
 	}
 	return nil
 }
 
+func (app *application) error(err error) {
+	app.readWriter.Stderr().Write([]byte(err.Error() + "\n"))
+}
+
 func (app *application) write(msg string) error {
-	_, err := app.readWriter.Write([]byte(msg))
+	_, err := app.readWriter.Write([]byte(msg + "\n"))
 	return err
 }
 
@@ -61,7 +72,7 @@ func (app *application) read() (string, error) {
 
 func (app *application) getUserPass() (string, []byte, error) {
 	oldPrompt := app.readWriter.Config.Prompt
-	app.readWriter.SetPrompt("login: ")
+	app.readWriter.SetPrompt("username: ")
 	username, err := app.read()
 	if err != nil {
 		return "", nil, err

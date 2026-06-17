@@ -8,12 +8,12 @@ import (
 	"io"
 	"log"
 	"os"
-	"path/filepath"
 	"time"
 
 	"RupenderSinghRathore/AuthCli/internal/database"
 
 	"github.com/chzyer/readline"
+	"github.com/joho/godotenv"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -24,6 +24,10 @@ type application struct {
 	quit       bool
 	cfg        *confugration
 	queary     *database.Queries
+	user       struct {
+		name       string
+		isLoggedIn bool
+	}
 }
 
 type confugration struct {
@@ -34,19 +38,16 @@ type confugration struct {
 	}
 }
 
-func sessionPath() (error, string) {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return err, ""
-	}
-	sessionPath := filepath.Join(home, ".config", AppName, "session")
-	return nil, sessionPath
-}
-
 func main() {
-	fmt.Printf("Wellcome to %s\n", AppName)
+	godotenv.Load()
 
 	var cfg confugration
+
+	dsn, err := getEnv("DATABASE_PATH")
+	if err != nil {
+		log.Fatal(err)
+	}
+	cfg.db.dsn = dsn
 
 	flag.IntVar(&cfg.db.maxOpenConn, "db-max-open-conns", 25, "Sqlite max open connections")
 	flag.DurationVar(
@@ -62,7 +63,19 @@ func main() {
 	}
 
 	app := application{}
+	app.cfg = &cfg
 	app.queary = database.New(db)
+
+	user, err := app.getSessionUser()
+	switch {
+	case err == nil:
+		app.loggingIn(user.Username)
+		fmt.Printf("Wellcome back %s to %s\n", app.user.name, AppName)
+	case errors.Is(err, sql.ErrNoRows) || errors.Is(err, os.ErrNotExist):
+		fmt.Printf("Wellcome to %s new user\n", AppName)
+	default:
+		log.Fatal(err)
+	}
 
 	if err := app.repl(); err != nil {
 		switch {
@@ -89,4 +102,17 @@ func openDB(cfg *confugration) (*sql.DB, error) {
 	db.SetConnMaxIdleTime(cfg.db.maxIdleTime)
 
 	return db, nil
+}
+
+func (app *application) loggingIn(username string) {
+	app.user.isLoggedIn = true
+	app.user.name = username
+}
+
+func getEnv(v string) (string, error) {
+	env := os.Getenv(v)
+	if env == "" {
+		return "", errors.New("Err: dsn environment variable not found")
+	}
+	return env, nil
 }

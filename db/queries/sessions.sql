@@ -1,8 +1,8 @@
 -- name: CreateSession :one
 INSERT INTO sessions (session_token, user_id, expires_at)
-    VALUES (?, ?, datetime ('now', '+7 days'))
+    VALUES (lower(hex (randomblob (32))), ?, datetime ('now', '+7 days'))
 RETURNING
-    *;
+    session_token;
 
 -- name: GetActiveSession :one
 SELECT
@@ -14,3 +14,11 @@ WHERE
     AND is_active = 1
     AND expires_at > CURRENT_TIMESTAMP;
 
+-- name: DeactivateSession :exec
+UPDATE sessions
+SET is_active = 0
+WHERE session_token = ?;
+
+-- name: DeleteExpiredSessions :exec
+DELETE FROM sessions
+WHERE expires_at <= CURRENT_TIMESTAMP;
