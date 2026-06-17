@@ -13,7 +13,7 @@ func (app *application) execCommand(cmd string) (string, error) {
 	case "":
 
 	case "exit":
-		return app.exit()
+		return app.exit(), nil
 
 	case "register":
 		return app.register()
@@ -29,7 +29,10 @@ func (app *application) execCommand(cmd string) (string, error) {
 
 	case "enable-2fa":
 	case "disable-2fa":
+
 	case "help":
+		return app.help(), nil
+
 	default:
 		msg = fmt.Sprintf("no such commad: %s", cmd)
 	}
@@ -37,9 +40,9 @@ func (app *application) execCommand(cmd string) (string, error) {
 	return msg, err
 }
 
-func (app *application) exit() (string, error) {
+func (app *application) exit() string {
 	app.quit = true
-	return "bye..", nil
+	return "bye.."
 }
 
 func (app *application) whoami() (string, error) {
@@ -110,4 +113,29 @@ func (app *application) logout() (string, error) {
 	}
 	app.unFillLoginInfo()
 	return "logged out successfully", nil
+}
+
+func (app *application) help() string {
+	if app.user.isLoggedIn {
+		return `
+Available Commands
+
+Account:
+  whoami        Show current user details
+  enable-2fa    Enable TOTP-based MFA
+  disable-2fa   Disable MFA
+  logout        End current session
+  help          Show this help message
+  exit          Quit the program
+`
+	}
+	return `
+Available Commands
+
+Authentication:
+  register      Create a new user account
+  login         Login with username and password
+  help          Show this help message
+  exit          Quit the program
+`
 }
