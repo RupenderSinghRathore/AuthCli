@@ -22,6 +22,7 @@ const (
 	MaxFailedAttempts = 3
 	// LockedUntil       = 7 * 24 * time.Hour
 	LockedUntil = time.Minute
+	SessionValidPeriod = 7 * 24 * time.Hour
 )
 
 type application struct {

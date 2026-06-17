@@ -1,6 +1,6 @@
 -- name: CreateSession :one
 INSERT INTO sessions (session_token, user_id, expires_at)
-    VALUES (lower(hex (randomblob (32))), ?, datetime ('now', '+7 days'))
+    VALUES (lower(hex (randomblob (32))), ?, ?)
 RETURNING
     session_token;
 

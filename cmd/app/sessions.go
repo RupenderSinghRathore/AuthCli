@@ -6,6 +6,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"time"
 
 	"RupenderSinghRathore/AuthCli/internal/database"
 )
@@ -32,7 +33,13 @@ func (app *application) readSessionConfig() ([]byte, error) {
 }
 
 func (app *application) createSession(userId int64) (string, error) {
-	return app.queary.CreateSession(context.Background(), userId)
+	return app.queary.CreateSession(
+		context.Background(),
+		database.CreateSessionParams{
+			UserID:    userId,
+			ExpiresAt: time.Now().Add(SessionValidPeriod),
+		},
+	)
 }
 
 func sessionPath() (string, error) {

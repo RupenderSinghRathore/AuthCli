@@ -7,17 +7,23 @@ package database
 
 import (
 	"context"
+	"time"
 )
 
 const createSession = `-- name: CreateSession :one
 INSERT INTO sessions (session_token, user_id, expires_at)
-    VALUES (lower(hex (randomblob (32))), ?, datetime ('now', '+7 days'))
+    VALUES (lower(hex (randomblob (32))), ?, ?)
 RETURNING
     session_token
 `
 
-func (q *Queries) CreateSession(ctx context.Context, userID int64) (string, error) {
-	row := q.db.QueryRowContext(ctx, createSession, userID)
+type CreateSessionParams struct {
+	UserID    int64     `json:"userId"`
+	ExpiresAt time.Time `json:"expiresAt"`
+}
+
+func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) (string, error) {
+	row := q.db.QueryRowContext(ctx, createSession, arg.UserID, arg.ExpiresAt)
 	var session_token string
 	err := row.Scan(&session_token)
 	return session_token, err
