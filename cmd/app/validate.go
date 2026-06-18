@@ -18,6 +18,16 @@ func newValidationErr(msg string) ValidatationErr {
 	return ValidatationErr{Msg: msg}
 }
 
+func validateUsernamePassowrd(username string, password []byte) error {
+	if err := validateUsername(username); err != nil {
+		return err
+	}
+	if err := validatePassword(password); err != nil {
+		return err
+	}
+	return nil
+}
+
 func validateUsername(username string) error {
 	if username == "" {
 		return newValidationErr("Err: username is required")
@@ -41,5 +51,15 @@ func validatePassword(password []byte) error {
 		return newValidationErr("Err: password must be at most 72 characters")
 	}
 
+	return nil
+}
+
+func (app *application) validateUsernamePassowrd(username string, password []byte) error {
+	if err := validateUsername(username); err != nil {
+		return err
+	}
+	if err := validatePassword(password); err != nil {
+		return err
+	}
 	return nil
 }

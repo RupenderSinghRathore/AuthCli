@@ -39,6 +39,41 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 	return i, err
 }
 
+const disableMFA = `-- name: DisableMFA :exec
+UPDATE
+    users
+SET
+    mfa_enabled = 0,
+    totp_secret = NULL
+WHERE
+    id = ?
+`
+
+func (q *Queries) DisableMFA(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, disableMFA, id)
+	return err
+}
+
+const enableMFA = `-- name: EnableMFA :exec
+UPDATE
+    users
+SET
+    mfa_enabled = TRUE,
+    totp_secret = ?
+WHERE
+    id = ?
+`
+
+type EnableMFAParams struct {
+	TotpSecret *string `json:"totpSecret"`
+	ID         int64   `json:"id"`
+}
+
+func (q *Queries) EnableMFA(ctx context.Context, arg EnableMFAParams) error {
+	_, err := q.db.ExecContext(ctx, enableMFA, arg.TotpSecret, arg.ID)
+	return err
+}
+
 const getUser = `-- name: GetUser :one
 SELECT
     id, username, password_hash, mfa_enabled, totp_secret, failed_attempts, locked_until, created_at, last_login_at

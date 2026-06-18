@@ -28,6 +28,8 @@ func (app *application) execCommand(cmd string) (string, error) {
 		return app.whoami()
 
 	case "enable-2fa":
+		return app.enable2fa()
+
 	case "disable-2fa":
 
 	case "help":
@@ -45,9 +47,60 @@ func (app *application) exit() string {
 	return "bye.."
 }
 
+func (app *application) enable2fa() (string, error) {
+	if app.user.mfaEnabled {
+		return "already enabled", nil
+	}
+	if !app.user.isLoggedIn {
+		return "", ErrNotLoggedIn
+	}
+	secret, err := generateTOTP(app.user.name)
+	if err != nil {
+		return "", err
+	}
+
+	// output the secert and info to start 2fa
+	app.revealTotp(secret)
+	code, err := app.promptTotp()
+	if err != nil {
+		return "", err
+	}
+	if !verifyTOTP(secret, code) {
+		return "", ErrIncorrectCode
+	}
+
+	// store the secret in database
+	if err := app.enableMfa(secret); err != nil {
+		return "", err
+	}
+	app.user.mfaEnabled = true
+
+	return "enabled TOTP based 2FA", nil
+}
+
+func (app *application) disable2fa() (string, error) {
+	if !app.user.mfaEnabled {
+		return "2FA not enabled", nil
+	}
+
+	err := app.disableMfa()
+	if err != nil {
+		return "", err
+	}
+	app.user.mfaEnabled = false
+
+	return "disabled TOTP based 2FA", nil
+}
+
 func (app *application) whoami() (string, error) {
 	if app.user.isLoggedIn {
-		return app.user.name, nil
+		msg := "username: " + app.user.name + "\n"
+		if app.user.mfaEnabled {
+			msg += "2FA: enabled"
+		} else {
+			msg += "2FA: disabled"
+		}
+		return msg, nil
 	} else {
 		return "", ErrNotLoggedIn
 	}
@@ -57,10 +110,15 @@ func (app *application) register() (string, error) {
 	if app.user.isLoggedIn {
 		return "already logged in", nil
 	}
-	username, password, err := app.getUserPass()
+	username, password, err := app.promptUserPass()
 	if err != nil {
 		return "", err
 	}
+
+	if err := validateUsernamePassowrd(username, password); err != nil {
+		return "", err
+	}
+
 	user, err := app.createUser(username, password)
 	if err != nil {
 		return "", err
@@ -82,15 +140,35 @@ func (app *application) login() (string, error) {
 	if app.user.isLoggedIn {
 		return "already logged in", nil
 	}
-	username, password, err := app.getUserPass()
+	username, password, err := app.promptUserPass()
 	if err != nil {
 		return "", err
 	}
 
-	user, err := app.tryUserLogin(username, password)
+	if err := validateUsernamePassowrd(username, password); err != nil {
+		return "", err
+	}
+
+	user, err := app.getUserForLogin(username)
 	if err != nil {
 		return "", err
 	}
+
+	if !VerifyPassword(user.PasswordHash, string(password)) {
+		return "", app.recordFailedLogin(user)
+	}
+
+	if user.MfaEnabled > 0 {
+		code, err := app.promptTotp()
+		if err != nil {
+			return "", err
+		}
+		if !verifyTOTP(*user.TotpSecret, code) {
+			app.recordFailedLogin(user)
+			return "", ErrIncorrectCode
+		}
+	}
+
 	app.fillLoginInfo(user)
 
 	sessionId, err := app.createSession(user.ID)

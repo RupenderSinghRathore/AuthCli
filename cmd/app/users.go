@@ -13,8 +13,9 @@ import (
 )
 
 var (
-	ErrNotLoggedIn  = errors.New("not logged in")
-	ErrUserNotFound = errors.New("no such user")
+	ErrNotLoggedIn   = errors.New("not logged in")
+	ErrUserNotFound  = errors.New("no such user")
+	ErrIncorrectCode = errors.New("wrong totp code")
 )
 
 type WrongPasswordErr struct {
@@ -47,12 +48,6 @@ func (e AccountLockedErr) Error() string {
 }
 
 func (app *application) createUser(username string, password []byte) (*database.User, error) {
-	if err := validateUsername(username); err != nil {
-		return nil, err
-	}
-	if err := validatePassword(password); err != nil {
-		return nil, err
-	}
 	PasswordHash, err := HashPassword(password)
 	if err != nil {
 		return nil, err
@@ -68,13 +63,7 @@ func (app *application) createUser(username string, password []byte) (*database.
 	return &user, nil
 }
 
-func (app *application) tryUserLogin(username string, password []byte) (*database.User, error) {
-	if err := validateUsername(username); err != nil {
-		return nil, err
-	}
-	if err := validatePassword(password); err != nil {
-		return nil, err
-	}
+func (app *application) getUserForLogin(username string) (*database.User, error) {
 	user, err := app.queary.GetUserByUsername(context.Background(), username)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
@@ -85,28 +74,27 @@ func (app *application) tryUserLogin(username string, password []byte) (*databas
 		return nil, err
 	}
 
-	if !VerifyPassword(user.PasswordHash, string(password)) {
-		// record unsuccessfull login
-		lockedUntil := time.Now().Add(LockedUntil)
-		user, err := app.queary.RecordFailedLogin(
-			context.Background(),
-			database.RecordFailedLoginParams{
-				UserID:      user.ID,
-				LockedUntil: &lockedUntil,
-				MaxAttempts: MaxFailedAttempts,
-			},
-		)
-		if err != nil {
-			return nil, err
-		}
-		return nil, newWrongPassErr(user.FailedAttempts)
-	}
-
-	if err := app.queary.RecordSuccessfulLogin(context.Background(), user.ID); err != nil {
-		return nil, err
-	}
-
 	return &user, nil
+}
+
+func (app *application) recordSuccessfulLogin(user *database.User) error {
+	return app.queary.RecordSuccessfulLogin(context.Background(), user.ID)
+}
+
+func (app *application) recordFailedLogin(user *database.User) error {
+	lockedUntil := time.Now().Add(LockedUntil)
+	u, err := app.queary.RecordFailedLogin(
+		context.Background(),
+		database.RecordFailedLoginParams{
+			UserID:      user.ID,
+			LockedUntil: &lockedUntil,
+			MaxAttempts: MaxFailedAttempts,
+		},
+	)
+	if err != nil {
+		return err
+	}
+	return newWrongPassErr(u.FailedAttempts)
 }
 
 func HashPassword(password []byte) (string, error) {
@@ -123,4 +111,18 @@ func VerifyPassword(hash, password string) bool {
 		[]byte(password),
 	)
 	return err == nil
+}
+
+func (app *application) enableMfa(secret string) error {
+	return app.queary.EnableMFA(
+		context.Background(),
+		database.EnableMFAParams{ID: app.user.id, TotpSecret: &secret},
+	)
+}
+
+func (app *application) disableMfa() error {
+	return app.queary.DisableMFA(
+		context.Background(),
+		app.user.id,
+	)
 }

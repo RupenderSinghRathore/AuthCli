@@ -70,3 +70,21 @@ WHERE
 RETURNING
     *;
 
+-- name: EnableMFA :exec
+UPDATE
+    users
+SET
+    mfa_enabled = TRUE,
+    totp_secret = ?
+WHERE
+    id = ?;
+
+-- name: DisableMFA :exec
+UPDATE
+    users
+SET
+    mfa_enabled = 0,
+    totp_secret = NULL
+WHERE
+    id = ?;
+

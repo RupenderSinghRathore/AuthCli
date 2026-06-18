@@ -18,10 +18,10 @@ import (
 )
 
 const (
-	AppName           = "authcli"
+	AppName           = "AuthCLI"
 	MaxFailedAttempts = 3
 	// LockedUntil       = 7 * 24 * time.Hour
-	LockedUntil = time.Minute
+	LockedUntil        = time.Minute
 	SessionValidPeriod = 7 * 24 * time.Hour
 )
 
@@ -34,6 +34,7 @@ type application struct {
 		id         int64
 		name       string
 		isLoggedIn bool
+		mfaEnabled bool
 	}
 }
 
@@ -115,12 +116,14 @@ func (app *application) fillLoginInfo(user *database.User) {
 	app.user.isLoggedIn = true
 	app.user.name = user.Username
 	app.user.id = user.ID
+	app.user.mfaEnabled = user.MfaEnabled > 0
 }
 
 func (app *application) unFillLoginInfo() {
 	app.user.isLoggedIn = false
 	app.user.name = ""
 	app.user.id = 0
+	app.user.mfaEnabled = false
 }
 
 func getEnv(v string) (string, error) {

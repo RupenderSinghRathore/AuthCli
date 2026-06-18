@@ -54,6 +54,7 @@ func (app *application) repl() error {
 			errors.As(err, &lockErr),
 			errors.As(err, &failedErr),
 			errors.Is(err, ErrNotLoggedIn),
+			errors.Is(err, ErrIncorrectCode),
 			errors.Is(err, ErrUserNotFound):
 			app.error(err)
 		default:
@@ -76,7 +77,7 @@ func (app *application) read() (string, error) {
 	return app.readWriter.Readline()
 }
 
-func (app *application) getUserPass() (string, []byte, error) {
+func (app *application) promptUserPass() (string, []byte, error) {
 	oldPrompt := app.readWriter.Config.Prompt
 	app.readWriter.SetPrompt("username: ")
 	username, err := app.read()
@@ -89,4 +90,18 @@ func (app *application) getUserPass() (string, []byte, error) {
 	}
 	app.readWriter.SetPrompt(oldPrompt)
 	return username, password, err
+}
+
+func (app *application) promptTotp() (string, error) {
+	oldPrompt := app.readWriter.Config.Prompt
+	app.readWriter.SetPrompt("your authenticator key: ")
+	code, err := app.read()
+	app.readWriter.SetPrompt(oldPrompt)
+	return code, err
+}
+
+func (app *application) revealTotp(secret string) {
+	app.write("use your authenticator app to setup totp with these values:")
+	app.write(fmt.Sprintf("code name: %s", app.user.name))
+	app.write(fmt.Sprintf("your key: %s", secret))
 }
