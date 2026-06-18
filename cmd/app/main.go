@@ -20,8 +20,7 @@ import (
 const (
 	AppName           = "AuthCLI"
 	MaxFailedAttempts = 3
-	// LockedUntil       = 7 * 24 * time.Hour
-	LockedUntil        = time.Minute
+	LockedUntil       = 7 * 24 * time.Hour
 	SessionValidPeriod = 7 * 24 * time.Hour
 )
 
