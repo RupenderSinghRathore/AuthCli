@@ -10,3 +10,4 @@ services:
       DATABASE_URL: sqlite:///app/db/myapp.db
     volumes:
       - ./db:/app/db
+      - ./.docker-config:/root/.config

@@ -5,6 +5,7 @@ db/*.db-wal
 
 # Environment
 .env
+.docker-config/
 
 # Build outputs
 bin/

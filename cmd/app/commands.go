@@ -34,6 +34,7 @@ func (app *application) execCommand(cmd string) (string, error) {
 		return app.enable2fa()
 
 	case "disable-2fa":
+		return app.disable2fa()
 
 	case "help":
 		return app.help(), nil
