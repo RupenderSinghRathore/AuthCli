@@ -6,19 +6,19 @@ import (
 
 var usernameRegex = regexp.MustCompile(`^[a-zA-Z0-9_-]{3,32}$`)
 
-type ValidatationErr struct {
+type ValidationErr struct {
 	Msg string
 }
 
-func (e ValidatationErr) Error() string {
+func (e ValidationErr) Error() string {
 	return e.Msg
 }
 
-func newValidationErr(msg string) ValidatationErr {
-	return ValidatationErr{Msg: msg}
+func newValidationErr(msg string) ValidationErr {
+	return ValidationErr{Msg: msg}
 }
 
-func validateUsernamePassowrd(username string, password []byte) error {
+func validateUsernamePassword(username string, password []byte) error {
 	if err := validateUsername(username); err != nil {
 		return err
 	}
@@ -44,7 +44,7 @@ func validateUsername(username string) error {
 
 func validatePassword(password []byte) error {
 	if len(password) < 4 {
-		return newValidationErr("Err: password must be at least 8 characters")
+		return newValidationErr("Err: password must be at least 4 characters")
 	}
 
 	if len(password) > 72 {

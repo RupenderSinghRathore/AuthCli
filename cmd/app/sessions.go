@@ -33,7 +33,7 @@ func (app *application) readSessionConfig() ([]byte, error) {
 }
 
 func (app *application) createSession(userId int64) (string, error) {
-	return app.queary.CreateSession(
+	return app.queries.CreateSession(
 		context.Background(),
 		database.CreateSessionParams{
 			UserID:    userId,
@@ -52,11 +52,11 @@ func sessionPath() (string, error) {
 }
 
 func (app *application) getSessionUser() (*database.User, error) {
-	session_id, err := app.readSessionConfig()
-	if err != nil || len(session_id) == 0 {
+	sessionID, err := app.readSessionConfig()
+	if err != nil || len(sessionID) == 0 {
 		return nil, err
 	}
-	user, err := app.queary.GetUserBySessionToken(context.Background(), string(session_id))
+	user, err := app.queries.GetUserBySessionToken(context.Background(), string(sessionID))
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
 		return nil, ErrUserNotFound

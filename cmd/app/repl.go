@@ -34,7 +34,7 @@ func (app *application) repl() error {
 	app.readWriter = rl
 	defer rl.Close()
 
-	var validErr ValidatationErr
+	var validErr ValidationErr
 	var lockErr AccountLockedErr
 	var failedErr WrongPasswordErr
 
@@ -103,6 +103,6 @@ func (app *application) promptTotp() (string, error) {
 
 func (app *application) revealTotp(secret string) {
 	app.write("use your authenticator app to setup totp with these values:")
-	app.write(fmt.Sprintf("code name: %s", app.user.name))
+	app.write(fmt.Sprintf("code name: %s", app.currentUser.name))
 	app.write(fmt.Sprintf("your key: %s", secret))
 }

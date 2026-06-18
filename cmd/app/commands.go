@@ -40,7 +40,7 @@ func (app *application) execCommand(cmd string) (string, error) {
 		return app.help(), nil
 
 	default:
-		msg = fmt.Sprintf("no such commad: %s", cmd)
+		msg = fmt.Sprintf("no such command: %s", cmd)
 	}
 
 	return msg, err
@@ -52,18 +52,18 @@ func (app *application) exit() string {
 }
 
 func (app *application) enable2fa() (string, error) {
-	if !app.user.isLoggedIn {
+	if !app.currentUser.isLoggedIn {
 		return "", ErrNotLoggedIn
 	}
-	if app.user.mfaEnabled {
+	if app.currentUser.mfaEnabled {
 		return "already enabled", nil
 	}
-	secret, err := generateTOTP(app.user.name)
+	secret, err := generateTOTP(app.currentUser.name)
 	if err != nil {
 		return "", err
 	}
 
-	// output the secert and info to start 2fa
+	// output the secret and info to start 2fa
 	app.revealTotp(secret)
 	code, err := app.promptTotp()
 	if err != nil {
@@ -77,13 +77,13 @@ func (app *application) enable2fa() (string, error) {
 	if err := app.enableMfa(secret); err != nil {
 		return "", err
 	}
-	app.user.mfaEnabled = true
+	app.currentUser.mfaEnabled = true
 
 	return "enabled TOTP based 2FA", nil
 }
 
 func (app *application) disable2fa() (string, error) {
-	if !app.user.mfaEnabled {
+	if !app.currentUser.mfaEnabled {
 		return "2FA not enabled", nil
 	}
 
@@ -91,15 +91,15 @@ func (app *application) disable2fa() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	app.user.mfaEnabled = false
+	app.currentUser.mfaEnabled = false
 
 	return "disabled TOTP based 2FA", nil
 }
 
 func (app *application) whoami() (string, error) {
-	if app.user.isLoggedIn {
-		msg := "username: " + app.user.name + "\n"
-		if app.user.mfaEnabled {
+	if app.currentUser.isLoggedIn {
+		msg := "username: " + app.currentUser.name + "\n"
+		if app.currentUser.mfaEnabled {
 			msg += "2FA: enabled"
 		} else {
 			msg += "2FA: disabled"
@@ -111,7 +111,7 @@ func (app *application) whoami() (string, error) {
 }
 
 func (app *application) register() (string, error) {
-	if app.user.isLoggedIn {
+	if app.currentUser.isLoggedIn {
 		return "already logged in", nil
 	}
 	username, password, err := app.promptUserPass()
@@ -119,7 +119,7 @@ func (app *application) register() (string, error) {
 		return "", err
 	}
 
-	if err := validateUsernamePassowrd(username, password); err != nil {
+	if err := validateUsernamePassword(username, password); err != nil {
 		return "", err
 	}
 
@@ -131,7 +131,7 @@ func (app *application) register() (string, error) {
 		return "", err
 	}
 
-	app.fillLoginInfo(user)
+	app.setCurrentUser(user)
 
 	sessionId, err := app.createSession(user.ID)
 	if err != nil {
@@ -150,7 +150,7 @@ func isUniqueConstraintErr(err error) bool {
 }
 
 func (app *application) login() (string, error) {
-	if app.user.isLoggedIn {
+	if app.currentUser.isLoggedIn {
 		return "already logged in", nil
 	}
 	username, password, err := app.promptUserPass()
@@ -158,7 +158,7 @@ func (app *application) login() (string, error) {
 		return "", err
 	}
 
-	if err := validateUsernamePassowrd(username, password); err != nil {
+	if err := validateUsernamePassword(username, password); err != nil {
 		return "", err
 	}
 
@@ -182,7 +182,7 @@ func (app *application) login() (string, error) {
 		}
 	}
 
-	app.fillLoginInfo(user)
+	app.setCurrentUser(user)
 
 	sessionId, err := app.createSession(user.ID)
 	if err != nil {
@@ -192,22 +192,25 @@ func (app *application) login() (string, error) {
 	if err := app.writeSessionConfig(sessionId); err != nil {
 		return "", err
 	}
-	return "logged in as " + app.user.name, nil
+	if err := app.recordSuccessfulLogin(user); err != nil {
+	    return "", err
+	}
+	return "logged in as " + app.currentUser.name, nil
 }
 
 func (app *application) logout() (string, error) {
-	if !app.user.isLoggedIn {
+	if !app.currentUser.isLoggedIn {
 		return "", ErrNotLoggedIn
 	}
-	if err := app.queary.DeleteSession(context.Background(), app.user.id); err != nil {
+	if err := app.queries.DeleteSession(context.Background(), app.currentUser.id); err != nil {
 		return "", err
 	}
-	app.unFillLoginInfo()
+	app.clearCurrentUser()
 	return "logged out successfully", nil
 }
 
 func (app *application) help() string {
-	if app.user.isLoggedIn {
+	if app.currentUser.isLoggedIn {
 		return `
 Available Commands
 

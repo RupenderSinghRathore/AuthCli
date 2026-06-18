@@ -12,13 +12,6 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-var (
-	ErrNotLoggedIn           = errors.New("not logged in")
-	ErrUserNotFound          = errors.New("no such user")
-	ErrIncorrectCode         = errors.New("wrong totp code")
-	ErrUsernameAlreadyExists = errors.New("username already exists")
-)
-
 type WrongPasswordErr struct {
 	Msg string
 }
@@ -49,13 +42,13 @@ func (e AccountLockedErr) Error() string {
 }
 
 func (app *application) createUser(username string, password []byte) (*database.User, error) {
-	PasswordHash, err := HashPassword(password)
+	passwordHash, err := HashPassword(password)
 	if err != nil {
 		return nil, err
 	}
-	user, err := app.queary.CreateUser(
+	user, err := app.queries.CreateUser(
 		context.Background(),
-		database.CreateUserParams{Username: username, PasswordHash: PasswordHash},
+		database.CreateUserParams{Username: username, PasswordHash: passwordHash},
 	)
 	if err != nil {
 		return nil, err
@@ -65,7 +58,7 @@ func (app *application) createUser(username string, password []byte) (*database.
 }
 
 func (app *application) getUserForLogin(username string) (*database.User, error) {
-	user, err := app.queary.GetUserByUsername(context.Background(), username)
+	user, err := app.queries.GetUserByUsername(context.Background(), username)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
 		return nil, ErrUserNotFound
@@ -79,12 +72,12 @@ func (app *application) getUserForLogin(username string) (*database.User, error)
 }
 
 func (app *application) recordSuccessfulLogin(user *database.User) error {
-	return app.queary.RecordSuccessfulLogin(context.Background(), user.ID)
+	return app.queries.RecordSuccessfulLogin(context.Background(), user.ID)
 }
 
 func (app *application) recordFailedLogin(user *database.User) error {
 	lockedUntil := time.Now().Add(LockedUntil)
-	u, err := app.queary.RecordFailedLogin(
+	u, err := app.queries.RecordFailedLogin(
 		context.Background(),
 		database.RecordFailedLoginParams{
 			UserID:      user.ID,
@@ -115,15 +108,15 @@ func VerifyPassword(hash, password string) bool {
 }
 
 func (app *application) enableMfa(secret string) error {
-	return app.queary.EnableMFA(
+	return app.queries.EnableMFA(
 		context.Background(),
-		database.EnableMFAParams{ID: app.user.id, TotpSecret: &secret},
+		database.EnableMFAParams{ID: app.currentUser.id, TotpSecret: &secret},
 	)
 }
 
 func (app *application) disableMfa() error {
-	return app.queary.DisableMFA(
+	return app.queries.DisableMFA(
 		context.Background(),
-		app.user.id,
+		app.currentUser.id,
 	)
 }

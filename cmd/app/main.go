@@ -27,9 +27,9 @@ const (
 type application struct {
 	readWriter *readline.Instance
 	quit       bool
-	cfg        *confugration
-	queary     *database.Queries
-	user       struct {
+	cfg        *configuration
+	queries     *database.Queries
+	currentUser       struct {
 		id         int64
 		name       string
 		isLoggedIn bool
@@ -37,7 +37,7 @@ type application struct {
 	}
 }
 
-type confugration struct {
+type configuration struct {
 	db struct {
 		dsn         string
 		maxOpenConn int
@@ -48,7 +48,7 @@ type confugration struct {
 func main() {
 	godotenv.Load()
 
-	var cfg confugration
+	var cfg configuration
 
 	dsn, err := getEnv("DATABASE_PATH")
 	if err != nil {
@@ -71,15 +71,15 @@ func main() {
 
 	app := application{}
 	app.cfg = &cfg
-	app.queary = database.New(db)
+	app.queries = database.New(db)
 
 	user, err := app.getSessionUser()
 	switch {
 	case err == nil:
-		app.fillLoginInfo(user)
-		fmt.Printf("Wellcome back %s to %s\n", app.user.name, AppName)
+		app.setCurrentUser(user)
+		fmt.Printf("Welcome back %s to %s\n", app.currentUser.name, AppName)
 	case errors.Is(err, ErrUserNotFound), errors.Is(err, os.ErrNotExist):
-		fmt.Printf("Wellcome to %s new user\n", AppName)
+		fmt.Printf("Welcome to %s new user\n", AppName)
 	default:
 		log.Fatal(err)
 	}
@@ -95,7 +95,7 @@ func main() {
 	}
 }
 
-func openDB(cfg *confugration) (*sql.DB, error) {
+func openDB(cfg *configuration) (*sql.DB, error) {
 	db, err := sql.Open("sqlite3", cfg.db.dsn)
 	if err != nil {
 		return nil, err
@@ -111,18 +111,18 @@ func openDB(cfg *confugration) (*sql.DB, error) {
 	return db, nil
 }
 
-func (app *application) fillLoginInfo(user *database.User) {
-	app.user.isLoggedIn = true
-	app.user.name = user.Username
-	app.user.id = user.ID
-	app.user.mfaEnabled = user.MfaEnabled > 0
+func (app *application) setCurrentUser(user *database.User) {
+	app.currentUser.isLoggedIn = true
+	app.currentUser.name = user.Username
+	app.currentUser.id = user.ID
+	app.currentUser.mfaEnabled = user.MfaEnabled > 0
 }
 
-func (app *application) unFillLoginInfo() {
-	app.user.isLoggedIn = false
-	app.user.name = ""
-	app.user.id = 0
-	app.user.mfaEnabled = false
+func (app *application) clearCurrentUser() {
+	app.currentUser.isLoggedIn = false
+	app.currentUser.name = ""
+	app.currentUser.id = 0
+	app.currentUser.mfaEnabled = false
 }
 
 func getEnv(v string) (string, error) {
