@@ -117,7 +117,8 @@ docker build -t authcli .
 docker run --rm -it \
   -e DATABASE_PATH=/app/db/myapp.db \
   -e DATABASE_URL=sqlite:///app/db/myapp.db \
-  -v "$(pwd)/db:/app/db" \
+  -v authcli-db:/app/db \
+  -v "$(pwd)/.docker-config:/root/.config" \
   authcli
 ```
 
@@ -139,20 +140,20 @@ docker-compose run --build --rm authcli
 
 ### Persistence behavior
 
-The Compose setup mounts the local `db/` directory into the container:
+The Compose setup stores SQLite data in a Docker-managed named volume:
 
 ```yaml
 volumes:
-  - ./db:/app/db
+  - authcli-db:/app/db
 ```
 
 That means:
 
 - database changes persist across container runs
-- if `db/myapp.db` already exists on your machine, the container uses that same file
-- if `db/myapp.db` does not exist yet, dbmate creates it and applies migrations
+- Docker uses its own isolated database instead of reusing `./db/myapp.db` from your host
+- host runs and Docker runs do not interfere with each other's SQLite file ownership or data
 
-dbmate migrates the database schema forward. It does not erase existing records unless you explicitly remove or replace the database file.
+dbmate migrates the Docker database schema forward on container startup. It does not erase existing records unless you explicitly remove the named volume.
 
 ## Session Behavior
 
@@ -166,7 +167,7 @@ On the next launch, the app attempts to restore the logged-in user from that ses
 
 For local runs, this file lives on your machine and is reused automatically.
 
-For Docker runs, both the database and the session file persist through bind mounts. The Compose setup mounts `./db` to `/app/db` for SQLite data and `./.docker-config` to `/root/.config` so the CLI session file survives across `docker compose run --rm` executions.
+For Docker runs, both the database and the session file persist across `docker compose run --rm` executions. The Compose setup uses the `authcli-db` named volume for SQLite data and mounts `./.docker-config` to `/root/.config` so the CLI session file survives as well.
 
 ## Available Commands
 

@@ -9,5 +9,8 @@ services:
       DATABASE_PATH: /app/db/myapp.db
       DATABASE_URL: sqlite:///app/db/myapp.db
     volumes:
-      - ./db:/app/db
+      - authcli-db:/app/db
       - ./.docker-config:/root/.config
+
+volumes:
+  authcli-db:
