@@ -2,7 +2,10 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
+
+	"github.com/mattn/go-sqlite3"
 )
 
 func (app *application) execCommand(cmd string) (string, error) {
@@ -48,11 +51,11 @@ func (app *application) exit() string {
 }
 
 func (app *application) enable2fa() (string, error) {
-	if app.user.mfaEnabled {
-		return "already enabled", nil
-	}
 	if !app.user.isLoggedIn {
 		return "", ErrNotLoggedIn
+	}
+	if app.user.mfaEnabled {
+		return "already enabled", nil
 	}
 	secret, err := generateTOTP(app.user.name)
 	if err != nil {
@@ -120,9 +123,13 @@ func (app *application) register() (string, error) {
 	}
 
 	user, err := app.createUser(username, password)
-	if err != nil {
+	switch {
+	case isUniqueConstraintErr(err):
+		return "", ErrUsernameAlreadyExists
+	case err != nil:
 		return "", err
 	}
+
 	app.fillLoginInfo(user)
 
 	sessionId, err := app.createSession(user.ID)
@@ -134,6 +141,11 @@ func (app *application) register() (string, error) {
 		return "", err
 	}
 	return "registered successfully!", nil
+}
+
+func isUniqueConstraintErr(err error) bool {
+	sqliteErr, ok := errors.AsType[sqlite3.Error](err)
+	return ok && sqliteErr.ExtendedCode == sqlite3.ErrConstraintUnique
 }
 
 func (app *application) login() (string, error) {

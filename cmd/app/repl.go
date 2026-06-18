@@ -55,7 +55,8 @@ func (app *application) repl() error {
 			errors.As(err, &failedErr),
 			errors.Is(err, ErrNotLoggedIn),
 			errors.Is(err, ErrIncorrectCode),
-			errors.Is(err, ErrUserNotFound):
+			errors.Is(err, ErrUserNotFound),
+			errors.Is(err, ErrUsernameAlreadyExists):
 			app.error(err)
 		default:
 			return err
