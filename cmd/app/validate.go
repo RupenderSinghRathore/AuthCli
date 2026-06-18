@@ -53,13 +53,3 @@ func validatePassword(password []byte) error {
 
 	return nil
 }
-
-func (app *application) validateUsernamePassowrd(username string, password []byte) error {
-	if err := validateUsername(username); err != nil {
-		return err
-	}
-	if err := validatePassword(password); err != nil {
-		return err
-	}
-	return nil
-}
