@@ -1,0 +1,12 @@
+services:
+  authcli:
+    build:
+      context: .
+    image: authcli
+    stdin_open: true
+    tty: true
+    environment:
+      DATABASE_PATH: /app/db/myapp.db
+      DATABASE_URL: sqlite:///app/db/myapp.db
+    volumes:
+      - ./db:/app/db

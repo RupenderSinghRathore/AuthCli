@@ -6,6 +6,11 @@ db/*.db-wal
 # Environment
 .env
 
-# Go
+# Build outputs
 bin/
 dist/
+authcli
+
+# Go workspace
+*.test
+coverage.out
