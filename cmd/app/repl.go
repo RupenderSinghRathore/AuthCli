@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"RupenderSinghRathore/AuthCli/internal/validator"
+
 	"github.com/chzyer/readline"
 )
 
@@ -34,7 +36,7 @@ func (app *application) repl() error {
 	app.readWriter = rl
 	defer rl.Close()
 
-	var validErr ValidationErr
+	var validationErr *validator.Validator
 	var lockErr AccountLockedErr
 	var failedErr WrongPasswordErr
 
@@ -50,7 +52,7 @@ func (app *application) repl() error {
 			if msg != "" {
 				app.write(msg)
 			}
-		case errors.As(err, &validErr),
+		case errors.As(err, &validationErr),
 			errors.As(err, &lockErr),
 			errors.As(err, &failedErr),
 			errors.Is(err, ErrNotLoggedIn),
