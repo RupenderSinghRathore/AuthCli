@@ -14,7 +14,7 @@ type Validator struct {
 	Errors []ValidationError
 }
 
-func (e Validator) Error() string {
+func (e *Validator) Error() string {
 	parts := make([]string, 0, len(e.Errors)+1)
 	parts = append(parts, "Validation errors:")
 	for _, err := range e.Errors {
